@@ -106,7 +106,7 @@ public class KafkaPartitionSplitReader
     @Override
     public RecordsWithSplitIds<ConsumerRecord<byte[], byte[]>> fetch() throws IOException {
         ConsumerRecords<byte[], byte[]> consumerRecords;
-        try {
+        try {// 设置poll数据超时时间
             consumerRecords = consumer.poll(Duration.ofMillis(POLL_TIMEOUT));
         } catch (WakeupException | IllegalStateException e) {
             // IllegalStateException will be thrown if the consumer is not assigned any partitions.
@@ -122,9 +122,9 @@ public class KafkaPartitionSplitReader
         KafkaPartitionSplitRecords recordsBySplits =
                 new KafkaPartitionSplitRecords(consumerRecords, kafkaSourceReaderMetrics);
         List<TopicPartition> finishedPartitions = new ArrayList<>();
-        for (TopicPartition tp : consumer.assignment()) {
-            long stoppingOffset = getStoppingOffset(tp);
-            long consumerPosition = getConsumerPosition(tp, "retrieving consumer position");
+        for (TopicPartition tp : consumer.assignment()) {//遍历当前查询的tp
+            long stoppingOffset = getStoppingOffset(tp);//第一次 stoppingOffset 默认是最大值
+            long consumerPosition = getConsumerPosition(tp, "retrieving consumer position");//找下需要消费的position
             // Stop fetching when the consumer's position reaches the stoppingOffset.
             // Control messages may follow the last record; therefore, using the last record's
             // offset as a stopping condition could result in indefinite blocking.
@@ -147,7 +147,7 @@ public class KafkaPartitionSplitReader
                         trackTp -> {
                             kafkaSourceReaderMetrics.maybeAddRecordsLagMetric(consumer, trackTp);
                         });
-
+        //订阅的空分区标记成本次finishedSplits
         markEmptySplitsAsFinished(recordsBySplits);
 
         // Unassign the partitions that has finished.

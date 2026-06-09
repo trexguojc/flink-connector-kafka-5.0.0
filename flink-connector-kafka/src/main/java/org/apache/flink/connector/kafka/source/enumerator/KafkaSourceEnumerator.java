@@ -249,7 +249,7 @@ public class KafkaSourceEnumerator
                     partitionDiscoveryIntervalMs);
             context.callAsync(
                     this::getSubscribedTopicPartitions,//返回 待订阅的topic跟分区的信息
-                    this::checkPartitionChanges,//
+                    this::checkPartitionChanges,//封装tp的变化(根据配置查kafka,之前tp: assigned,pending的)
                     0,
                     partitionDiscoveryIntervalMs);
         } else {
@@ -402,7 +402,7 @@ public class KafkaSourceEnumerator
             Map<TopicPartition, Long> startingOffsets,
             Map<TopicPartition, Long> stoppingOffsets) {
         OffsetsInitializer.PartitionOffsetsRetriever offsetsRetriever = getOffsetsRetriever();
-        startingOffsets.putAll(
+        startingOffsets.putAll(//org.apache.flink.connector.kafka.source.KafkaSourceBuilder 构造器定义了startOffset.从最早开始
                 startOffsetInitializer.getPartitionOffsets(partitions, offsetsRetriever));
         stoppingOffsets.putAll(//org.apache.flink.connector.kafka.source.KafkaSourceBuilder 构造器定义了stopOffset的对象
                 stoppingOffsetInitializer.getPartitionOffsets(partitions, offsetsRetriever));
