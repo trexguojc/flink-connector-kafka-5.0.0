@@ -126,7 +126,7 @@ public class KafkaSourceEnumerator
 
     /**
      * The discovered and initialized partition splits that are waiting for owner reader to be
-     * ready.
+     * ready.k:某一个子task的ID [(tp进行has*31+partition)%并行读] ,v:分配到这个task的tp信息
      */
     private final Map<Integer, Set<KafkaPartitionSplit>> pendingPartitionSplitAssignment =
             new HashMap<>();
@@ -433,8 +433,8 @@ public class KafkaSourceEnumerator
         }
         LOG.info("Partition split changes: {}", partitionSplitChange);
         // TODO: Handle removed partitions.
-        addPartitionSplitChangeToPendingAssignments(partitionSplitChange.newPartitionSplits);
-        assignPendingPartitionSplits(context.registeredReaders().keySet());
+        addPartitionSplitChangeToPendingAssignments(partitionSplitChange.newPartitionSplits);// 把待分配的tp放到一个map里
+        assignPendingPartitionSplits(context.registeredReaders().keySet());//从环境中找全部的readers,环境会给这些reader从map里面分配任务
     }
 
     // This method should only be invoked in the coordinator executor thread.
@@ -442,7 +442,7 @@ public class KafkaSourceEnumerator
             Collection<KafkaPartitionSplit> newPartitionSplits) {
         int numReaders = context.currentParallelism();
         List<KafkaPartitionSplit> sortedSplits = new ArrayList<>(newPartitionSplits);
-        sortedSplits.sort(
+        sortedSplits.sort(// topic+分区(字典序)
                 Comparator.comparing(
                                 (KafkaPartitionSplit split) -> split.getTopicPartition().topic())
                         .thenComparingInt(split -> split.getTopicPartition().partition()));
@@ -471,7 +471,7 @@ public class KafkaSourceEnumerator
 
         // Check if there's any pending splits for given readers
         for (int pendingReader : pendingReaders) {
-            checkReaderRegistered(pendingReader);
+            checkReaderRegistered(pendingReader);// 只是检查了是否注册过,不包括是否分配过任务
 
             // Remove pending assignment for the reader
             final Set<KafkaPartitionSplit> pendingAssignmentForReader =
