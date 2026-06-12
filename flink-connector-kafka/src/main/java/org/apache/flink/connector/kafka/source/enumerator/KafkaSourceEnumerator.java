@@ -126,7 +126,7 @@ public class KafkaSourceEnumerator
 
     /**
      * The discovered and initialized partition splits that are waiting for owner reader to be
-     * ready.k:某一个子task的ID [(tp进行has*31+partition)%并行读] ,v:分配到这个task的tp信息
+     * ready.k:某一个子task的ID [(tp进行has*31+partition)%并行读] ,v:分配到这个task的tp信息不同的TP分配到同一个task上
      */
     private final Map<Integer, Set<KafkaPartitionSplit>> pendingPartitionSplitAssignment =
             new HashMap<>();
@@ -249,7 +249,7 @@ public class KafkaSourceEnumerator
                     partitionDiscoveryIntervalMs);
             context.callAsync(
                     this::getSubscribedTopicPartitions,//返回 待订阅的topic跟分区的信息
-                    this::checkPartitionChanges,//封装tp的变化(根据配置查kafka,之前tp: assigned,pending的)
+                    this::checkPartitionChanges,//封装tp的变化(根据配置查kafka,之前tp: assigned,pending的)给下游task分配任务
                     0,
                     partitionDiscoveryIntervalMs);
         } else {
@@ -271,10 +271,10 @@ public class KafkaSourceEnumerator
         for (KafkaPartitionSplit split : splits) {
             unassignedSplits.put(split.getTopicPartition(), split);
             assignedSplits.remove(split.getTopicPartition());
-        }
+        }//重新把失败的task 加到 pendingPartitionSplitAssignmentmap中
         addPartitionSplitChangeToPendingAssignments(splits);
 
-        // If the failed subtask has already restarted, we need to assign pending splits to it
+        // If the failed subtask has already restarted, we need to assign pending splits to it 重新分配任务到task
         if (context.registeredReaders().containsKey(subtaskId)) {
             assignPendingPartitionSplits(Collections.singleton(subtaskId));
         }
@@ -447,7 +447,7 @@ public class KafkaSourceEnumerator
                                 (KafkaPartitionSplit split) -> split.getTopicPartition().topic())
                         .thenComparingInt(split -> split.getTopicPartition().partition()));
         for (KafkaPartitionSplit split : sortedSplits) {
-            int ownerReader = splitOwnerSelector.getSplitOwner(split, numReaders);
+            int ownerReader = splitOwnerSelector.getSplitOwner(split, numReaders);//重新计算该分配到哪个reader
             checkState(
                     ownerReader >= 0 && ownerReader < numReaders,
                     "Invalid split owner %s for split %s with current parallelism %s",
